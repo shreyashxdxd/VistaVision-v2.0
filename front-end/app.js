@@ -1,5 +1,10 @@
 const camera = document.getElementById("camera");
 const canvas = document.getElementById("detectionCanvas");
+const uploadedVideo =
+    document.getElementById("uploadedVideo");
+
+const uploadCanvas =
+    document.getElementById("uploadDetectionCanvas");
 
 const startCameraButton =
     document.getElementById("startCamera");
@@ -25,6 +30,18 @@ const analysisResult =
 const analysisStatus =
     document.getElementById("analysisStatus");
 
+const videoUpload =
+    document.getElementById("videoUpload");
+
+const uploadMessage =
+    document.getElementById("uploadMessage");
+
+const uploadStatus =
+    document.getElementById("uploadStatus");
+
+const videoAnalysisButton =
+    document.getElementById("videoAnalysisButton");
+
 
 // Canvas used ONLY for YOLO frame capture
 const frameCanvas =
@@ -37,6 +54,9 @@ const frameContext =
 const detectionContext =
     canvas.getContext("2d");
 
+const uploadDetectionContext =
+    uploadCanvas.getContext("2d");
+
 
 let stream = null;
 let detectionRunning = false;
@@ -44,6 +64,13 @@ let detectionBusy = false;
 
 let lastDetectionTime = 0;
 
+let uploadVideoUrl = null;
+let uploadDetectionRunning = false;
+let uploadDetectionBusy = false;
+let lastUploadDetectionTime = 0;
+
+const DETECTION_INTERVAL_MS = 350;
+const DETECTION_WIDTH = 640;
 
 // =========================================================
 // START CAMERA
@@ -91,8 +118,7 @@ startCameraButton.addEventListener(
 
 
             // Small resolution for YOLO
-            frameCanvas.width = 640;
-            frameCanvas.height = 360;
+            setDetectionFrameSize(camera);
 
 
             detectionRunning = true;
@@ -136,14 +162,20 @@ function detectionLoop(timestamp) {
     */
 
     if (
-        timestamp - lastDetectionTime > 350 &&
+        timestamp - lastDetectionTime > DETECTION_INTERVAL_MS &&
         !detectionBusy
     ) {
 
         lastDetectionTime =
             timestamp;
 
-        runDetection();
+        runDetection(
+            camera,
+            canvas,
+            detectionContext,
+            () => detectionBusy = true,
+            () => detectionBusy = false
+        );
     }
 
 
@@ -157,24 +189,32 @@ function detectionLoop(timestamp) {
 // SEND LOW-RES FRAME TO YOLO
 // =========================================================
 
-async function runDetection() {
+async function runDetection(
+    source,
+    targetCanvas,
+    targetContext,
+    markBusy,
+    markReady
+) {
 
     if (
-        !camera.videoWidth ||
-        !camera.videoHeight
+        !source.videoWidth ||
+        !source.videoHeight
     ) {
         return;
     }
 
 
-    detectionBusy = true;
+    markBusy();
 
 
     try {
 
+        setDetectionFrameSize(source);
+
         // Capture small frame
         frameContext.drawImage(
-            camera,
+            source,
             0,
             0,
             frameCanvas.width,
@@ -229,7 +269,9 @@ async function runDetection() {
         drawDetections(
             data.detections,
             data.width,
-            data.height
+            data.height,
+            targetCanvas,
+            targetContext
         );
 
 
@@ -242,7 +284,7 @@ async function runDetection() {
 
     } finally {
 
-        detectionBusy = false;
+        markReady();
 
     }
 }
@@ -255,23 +297,25 @@ async function runDetection() {
 function drawDetections(
     detections,
     sourceWidth,
-    sourceHeight
+    sourceHeight,
+    targetCanvas = canvas,
+    targetContext = detectionContext
 ) {
 
     // Clear previous boxes
-    detectionContext.clearRect(
+    targetContext.clearRect(
         0,
         0,
-        canvas.width,
-        canvas.height
+        targetCanvas.width,
+        targetCanvas.height
     );
 
 
     const scaleX =
-        canvas.width / sourceWidth;
+        targetCanvas.width / sourceWidth;
 
     const scaleY =
-        canvas.height / sourceHeight;
+        targetCanvas.height / sourceHeight;
 
 
     detections.forEach(
@@ -309,12 +353,12 @@ function drawDetections(
 
 
             // Bounding box
-            detectionContext.strokeStyle =
+            targetContext.strokeStyle =
                 "#38bdf8";
 
-            detectionContext.lineWidth = 3;
+            targetContext.lineWidth = 3;
 
-            detectionContext.strokeRect(
+            targetContext.strokeRect(
                 boxX,
                 boxY,
                 boxWidth,
@@ -323,21 +367,21 @@ function drawDetections(
 
 
             // Label
-            detectionContext.font =
+            targetContext.font =
                 "bold 14px Arial";
 
 
             const textWidth =
-                detectionContext
+                targetContext
                     .measureText(label)
                     .width;
 
 
-            detectionContext.fillStyle =
+            targetContext.fillStyle =
                 "#38bdf8";
 
 
-            detectionContext.fillRect(
+            targetContext.fillRect(
                 boxX,
                 Math.max(0, boxY - 27),
                 textWidth + 14,
@@ -345,11 +389,11 @@ function drawDetections(
             );
 
 
-            detectionContext.fillStyle =
+            targetContext.fillStyle =
                 "#061016";
 
 
-            detectionContext.fillText(
+            targetContext.fillText(
                 label,
                 boxX + 7,
                 Math.max(19, boxY - 8)
@@ -357,6 +401,28 @@ function drawDetections(
 
         }
     );
+}
+
+function setDetectionFrameSize(source) {
+
+    const aspectRatio =
+        source.videoHeight / source.videoWidth ||
+        9 / 16;
+
+    frameCanvas.width =
+        DETECTION_WIDTH;
+
+    frameCanvas.height =
+        Math.round(DETECTION_WIDTH * aspectRatio);
+}
+
+function setOverlaySize(source, targetCanvas) {
+
+    targetCanvas.width =
+        source.videoWidth;
+
+    targetCanvas.height =
+        source.videoHeight;
 }
 
 
@@ -370,6 +436,18 @@ snapshotButton.addEventListener(
 
         if (!stream) return;
 
+        captureIncidentFromSource(
+            camera,
+            "Incident captured successfully. Press <strong>AI ANALYSIS</strong> to analyze the image."
+        );
+
+    }
+);
+
+function captureIncidentFromSource(
+    source,
+    successMessage
+) {
 
         const snapshotCanvas =
             document.createElement(
@@ -378,10 +456,10 @@ snapshotButton.addEventListener(
 
 
         snapshotCanvas.width =
-            camera.videoWidth;
+            source.videoWidth;
 
         snapshotCanvas.height =
-            camera.videoHeight;
+            source.videoHeight;
 
 
         const snapshotContext =
@@ -391,7 +469,7 @@ snapshotButton.addEventListener(
 
 
         snapshotContext.drawImage(
-            camera,
+            source,
             0,
             0,
             snapshotCanvas.width,
@@ -428,11 +506,169 @@ snapshotButton.addEventListener(
 
         analysisResult.innerHTML = `
             <p>
-                Incident captured successfully.
-                Press <strong>AI ANALYSIS</strong>
-                to analyze the image.
+                ${successMessage}
             </p>
         `;
+
+}
+
+// =========================================================
+// VIDEO UPLOAD
+// =========================================================
+
+videoUpload.addEventListener(
+    "change",
+    () => {
+
+        const file =
+            videoUpload.files[0];
+
+        if (!file) {
+            return;
+        }
+
+        if (uploadVideoUrl) {
+            URL.revokeObjectURL(
+                uploadVideoUrl
+            );
+        }
+
+        uploadVideoUrl =
+            URL.createObjectURL(file);
+
+        uploadedVideo.src =
+            uploadVideoUrl;
+
+        uploadedVideo.load();
+
+        uploadMessage.style.display =
+            "none";
+
+        uploadStatus.textContent =
+            "LOADED";
+
+        videoAnalysisButton.disabled =
+            false;
+
+        uploadDetectionContext.clearRect(
+            0,
+            0,
+            uploadCanvas.width,
+            uploadCanvas.height
+        );
+
+    }
+);
+
+uploadedVideo.addEventListener(
+    "loadedmetadata",
+    () => {
+
+        uploadedVideo.parentElement.style.aspectRatio =
+            `${uploadedVideo.videoWidth} / ${uploadedVideo.videoHeight}`;
+
+        setOverlaySize(
+            uploadedVideo,
+            uploadCanvas
+        );
+
+    }
+);
+
+uploadedVideo.addEventListener(
+    "play",
+    () => {
+
+        uploadDetectionRunning =
+            true;
+
+        uploadStatus.textContent =
+            "DETECTING";
+
+        requestAnimationFrame(
+            uploadDetectionLoop
+        );
+
+    }
+);
+
+uploadedVideo.addEventListener(
+    "pause",
+    () => {
+
+        uploadDetectionRunning =
+            false;
+
+        uploadStatus.textContent =
+            "PAUSED";
+
+    }
+);
+
+uploadedVideo.addEventListener(
+    "ended",
+    () => {
+
+        uploadDetectionRunning =
+            false;
+
+        uploadStatus.textContent =
+            "COMPLETE";
+
+    }
+);
+
+function uploadDetectionLoop(timestamp) {
+
+    if (
+        !uploadDetectionRunning ||
+        uploadedVideo.paused ||
+        uploadedVideo.ended
+    ) {
+        return;
+    }
+
+    if (
+        timestamp - lastUploadDetectionTime > DETECTION_INTERVAL_MS &&
+        !uploadDetectionBusy
+    ) {
+
+        lastUploadDetectionTime =
+            timestamp;
+
+        runDetection(
+            uploadedVideo,
+            uploadCanvas,
+            uploadDetectionContext,
+            () => uploadDetectionBusy = true,
+            () => uploadDetectionBusy = false
+        );
+    }
+
+    requestAnimationFrame(
+        uploadDetectionLoop
+    );
+}
+
+videoAnalysisButton.addEventListener(
+    "click",
+    async () => {
+
+        if (
+            !uploadedVideo.src ||
+            !uploadedVideo.videoWidth
+        ) {
+            return;
+        }
+
+        captureIncidentFromSource(
+            uploadedVideo,
+            "Uploaded video frame captured. Running <strong>AI ANALYSIS</strong> now."
+        );
+
+        await runAIAnalysis(
+            "AI is analyzing the uploaded video frame..."
+        );
 
     }
 );
@@ -443,14 +679,20 @@ snapshotButton.addEventListener(
 
 analysisButton.addEventListener(
     "click",
-    async () => {
+    () => runAIAnalysis(
+        "AI is analyzing the incident..."
+    )
+);
 
-        if (!snapshot.src) {
-            return;
-        }
+async function runAIAnalysis(loadingMessage) {
+
+    if (!snapshot.src) {
+        return;
+    }
 
 
         analysisButton.disabled = true;
+        videoAnalysisButton.disabled = true;
 
         analysisStatus.textContent =
             "ANALYZING";
@@ -458,7 +700,7 @@ analysisButton.addEventListener(
 
         analysisResult.innerHTML = `
             <p>
-                🤖 AI is analyzing the incident...
+                ${loadingMessage}
             </p>
         `;
 
@@ -547,10 +789,12 @@ analysisButton.addEventListener(
             analysisButton.disabled =
                 false;
 
+            videoAnalysisButton.disabled =
+                !uploadedVideo.src;
+
         }
 
-    }
-);
+}
 
 function formatAIResponse(text) {
 

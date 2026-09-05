@@ -174,6 +174,10 @@ body {
         minmax(0, 1.65fr)
         minmax(380px, 0.85fr);
 
+    grid-template-areas:
+        "camera analysis"
+        "upload analysis";
+
     gap: 20px;
 }
 
@@ -183,6 +187,7 @@ body {
    ========================================================= */
 
 .camera-panel,
+.upload-panel,
 .analysis-panel {
     background:
         linear-gradient(
@@ -199,6 +204,18 @@ body {
 
     box-shadow:
         0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.camera-panel {
+    grid-area: camera;
+}
+
+.upload-panel {
+    grid-area: upload;
+}
+
+.analysis-panel {
+    grid-area: analysis;
 }
 
 .panel-header {
@@ -294,6 +311,28 @@ body {
     pointer-events: none;
 }
 
+#uploadedVideo,
+#uploadDetectionCanvas {
+    width: 100%;
+    height: 100%;
+}
+
+#uploadedVideo {
+    display: block;
+
+    object-fit: contain;
+
+    background: #020407;
+}
+
+#uploadDetectionCanvas {
+    position: absolute;
+
+    inset: 0;
+
+    pointer-events: none;
+}
+
 #cameraMessage {
     position: absolute;
 
@@ -311,13 +350,35 @@ body {
     text-transform: uppercase;
 }
 
+#uploadMessage {
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    transform: translate(-50%, -50%);
+
+    width: min(80%, 320px);
+
+    color: var(--muted);
+
+    font-size: 12px;
+
+    letter-spacing: 0.05em;
+
+    text-align: center;
+    text-transform: uppercase;
+}
+
 
 /* =========================================================
    CAMERA CORNER MARKERS
    ========================================================= */
 
 .camera-container::before,
-.camera-container::after {
+.camera-container::after,
+.upload-container::before,
+.upload-container::after {
     content: "";
 
     position: absolute;
@@ -330,7 +391,8 @@ body {
     z-index: 3;
 }
 
-.camera-container::before {
+.camera-container::before,
+.upload-container::before {
     top: 14px;
     left: 14px;
 
@@ -338,7 +400,8 @@ body {
     border-left: 1px solid rgba(56, 189, 248, 0.8);
 }
 
-.camera-container::after {
+.camera-container::after,
+.upload-container::after {
     right: 14px;
     bottom: 14px;
 
@@ -361,6 +424,116 @@ body {
     border-top: 1px solid var(--border);
 
     background: rgba(0, 0, 0, 0.12);
+}
+
+.upload-container {
+    position: relative;
+
+    width: 100%;
+
+    aspect-ratio: 16 / 9;
+
+    background:
+        repeating-linear-gradient(
+            45deg,
+            #05080d,
+            #05080d 12px,
+            #080d14 12px,
+            #080d14 24px
+        );
+
+    overflow: hidden;
+}
+
+.upload-controls {
+    display: grid;
+
+    grid-template-columns: minmax(150px, 0.65fr) minmax(190px, 1fr);
+
+    gap: 10px;
+
+    padding: 15px;
+
+    border-top: 1px solid var(--border);
+
+    background: rgba(0, 0, 0, 0.12);
+}
+
+#videoUpload {
+    display: none;
+}
+
+.file-upload,
+#videoAnalysisButton {
+    height: 40px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 6px;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    letter-spacing: 0.08em;
+}
+
+.file-upload {
+    color: #dbeafe;
+
+    background: #10202c;
+
+    border: 1px solid #1e3a4c;
+
+    cursor: pointer;
+
+    transition:
+        transform 0.15s ease,
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.file-upload:hover {
+    background: #153043;
+
+    border-color: #28536a;
+}
+
+.file-upload:active {
+    transform: scale(0.98);
+}
+
+#videoAnalysisButton {
+    color: #061016;
+
+    background: var(--accent);
+
+    border: 1px solid var(--accent);
+}
+
+#videoAnalysisButton:hover:not(:disabled) {
+    background: #67cdf7;
+
+    box-shadow:
+        0 0 18px rgba(56, 189, 248, 0.18);
+}
+
+.upload-status {
+    color: var(--muted);
+
+    font-size: 8px;
+
+    font-weight: 700;
+
+    letter-spacing: 0.1em;
+
+    padding: 4px 7px;
+
+    border: 1px solid var(--border-light);
+
+    border-radius: 4px;
 }
 
 button {
@@ -660,6 +833,11 @@ footer {
 
     .dashboard {
         grid-template-columns: 1fr;
+
+        grid-template-areas:
+            "camera"
+            "upload"
+            "analysis";
     }
 
     .analysis-panel {
@@ -694,8 +872,14 @@ footer {
         flex-direction: column;
     }
 
+    .upload-controls {
+        grid-template-columns: 1fr;
+    }
+
     #startCamera,
-    #snapshotButton {
+    #snapshotButton,
+    .file-upload,
+    #videoAnalysisButton {
         width: 100%;
     }
 

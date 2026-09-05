@@ -9,8 +9,9 @@ The system uses a live camera feed to detect people using YOLO and allows the us
 - Real-time camera feed
 - Real-time human detection using YOLO
 - Live bounding boxes around detected people
+- Uploaded video playback with YOLO detection overlays
 - Incident snapshot capture
-- AI-powered image analysis
+- AI-powered image and video-frame analysis
 - Analysis of people, environment, visible hazards, and potential concerns
 
 ## How It Works
@@ -25,6 +26,14 @@ Live Bounding Boxes
 Capture Snapshot
      ↓
 AI Vision Analysis
+     ↓
+AI Insights
+
+Uploaded Video
+     ↓
+YOLO Detection Overlay
+     ↓
+Analyze Current Frame
      ↓
 AI Insights
 ```

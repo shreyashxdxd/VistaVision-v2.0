@@ -65,6 +65,52 @@
 
         </section>
 
+        <!-- VIDEO UPLOAD -->
+        <section class="upload-panel">
+
+            <div class="panel-header">
+                <h2>VIDEO UPLOAD</h2>
+
+                <div class="upload-status" id="uploadStatus">
+                    WAITING
+                </div>
+            </div>
+
+            <div class="upload-container">
+
+                <video
+                    id="uploadedVideo"
+                    controls
+                    playsinline>
+                </video>
+
+                <canvas id="uploadDetectionCanvas"></canvas>
+
+                <div id="uploadMessage">
+                    Upload a video for YOLO detection
+                </div>
+
+            </div>
+
+            <div class="upload-controls">
+                <label class="file-upload" for="videoUpload">
+                    SELECT VIDEO
+                </label>
+
+                <input
+                    id="videoUpload"
+                    type="file"
+                    accept="video/*">
+
+                <button
+                    id="videoAnalysisButton"
+                    disabled>
+                    ANALYZE VIDEO FRAME
+                </button>
+            </div>
+
+        </section>
+
 
         <!-- ANALYSIS -->
         <section class="analysis-panel">
